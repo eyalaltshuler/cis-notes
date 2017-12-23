@@ -1,0 +1,179 @@
+\section{Naive approach - distribuing the LCM algorithm}
+\label{sec:alg}
+In this section we explain how to parallelize the LCM
+algorithm. We mark the parallelized version of LCM by
+\textit{parallelized-lcm}. First we give an overview of the
+distribution process, and then we express this parallelized
+version as an iterative MapReduce algorithm. We end this
+section by discussing some possible ways to optimize
+performance of \textit{parallelized-lcm}. The optimizations
+are explained intuitively, and used in Section \ref{sec:alg-sampling} as a
+motivation to have the use of samping.
+
+\subsection{Distributed LCM Primitives}
+In a high level overview, \textit{parallelized-lcm} is
+composed of a single master machine that iteratively runs
+MapReduce rounds in the other machines and collects their
+intermediate outputs. After completing all required
+MapReduce rounds, the master machine return the tree of
+closed frequent itemsets. The algorithm starts by elements
+counting, that can be easily applied using MapReduce and is
+expplained in $parallel-count$.
+Then, only frequent elements are filtered, as they are the only
+candidates element composing a frequent itemset. For
+every frequent element, its closure is computed in parallel
+by $parallel-closure$. The result is added as a closed
+itemsets to the resulting tree. Having the new layer of all
+candidates in the tree, the algorithm tries to expand and
+find new candidates by applying $parallel-expand$ to every
+closed itemset in the top level of the tree. The frequency
+of every candidate is also computed using MapReduce, and the
+candidates are only those itemsets having frequency larger
+than $M$. We briefly describe how to
+parallelize $parallel-count$, $parallel-closure$ and
+$parallel-expand$ using MapReduce, in a way which is
+straight forward. We then take into consideration our
+algorithm settings for imrpoving them.
+ 
+%\begin{algorithm}[t]
+% \SetAlgoLined\DontPrintSemicolon
+% // k mappers, Every mapper holds a subset of transactions
+% \;
+% \SetKwProg{myalg}{}{}{}
+% \myalg{\textbf{Map(transaction)}}{
+% \For{$item \in \textit{transaction}$}{
+%    emit (item, 1)
+% }
+% }{}\;
+% // k reducers, every reducer knows the item frequency
+% threshold M
+% \;
+% \SetKwProg{myalg}{}{}{}
+% \myalg{\textbf{Reduce(item, occurences)}}{
+% \For{$value \in \textit{occurences}$}{
+% 		item-count += value
+% }
+% \If{item-count > $M}{
+% 		return (item, item-count)
+% }{}\;
+% }
+% \caption{Frequent Items Count MapReduce algorithm}
+% \label{alg:parallel-count}
+% \end{algorithm}
+
+MapReduce implementation of $parallel-count$ is similar to
+the word-count MapReduce algorithm [?] where every item is
+considered as a word. The MapReduce implementation of
+$parallel-closure$ is as follows. In the Map phase, every
+mapper filters its transactions acordding to its input
+itemset, and then applies intersection on all transactions. 
+The resulting itemsets, which are actually the
+closure computed locally at this mapper, are sent to a
+single reducer. Only a single reducer is required to
+complete the aggregation and compute the final closure. The single
+reducer simply intersects all of its input, having the
+closure as a result.
+
+% \begin{algorithm}[t]
+%  \SetAlgoLined\DontPrintSemicolon
+%  // k mappers, Every mapper holds a subset of transactions
+%  and an itemset $I$
+%  \;
+%  \SetKwProg{myalg}{}{}{}
+%  \myalg{\textbf{Map(transactions)}}{
+%  \For{$item \in \textit{transactions}$}{
+%     filtered-transactions =
+%     filter-transactions-containing(transactions, I);  \\
+%     partial-intersection =
+%     Intersection(filtered-transactions); \\
+%     emit (I, partial-intersection) 
+%  }
+%  }{}\;
+%  // 1 reducer
+%  \;
+%  \SetKwProg{myalg}{}{}{}
+%  \myalg{\textbf{Reduce(I, List<partial-intersection> l)}}{
+%  	emit (I, Intersection(l))
+%  {}\;
+%  }
+%  \caption{Parallel-Closure MapReduce algorithm}
+%  \label{alg:parallel-closure}
+%  \end{algorithm}
+
+For a MapReduce implementation of $parallel-expand$, only a
+map phase is needed. Namely, no aggregation is needed in the
+reduce phase and each mapper can simply return all of its
+outputs. The work every mapper does is going over its
+itemsets, and for every itemset of size $s$, emiting all
+possible itemsets of size $s+1$ by adding them a single item. 
+For doing this, we assume that the set of all possible items 
+is known to every mapper in advance. We note that this requirement might
+consume some mapper memory, but this is a reasonable assumption in pracatical 
+MapReduce settings.
+
+% \begin{algorithm}[t]
+% \SetAlgoLined\DontPrintSemicolon
+% // k mappers, Every mapper holds an itemset $I$,
+% and knows in memory the set of all items in the data,
+% marked by $I_all$
+% \;
+% \SetKwProg{myalg}{}{}{}
+% \myalg{\textbf{Map(I)}}{
+% elements-to-add = $I_all$ \ $I$
+% \For{$item \in \textit{elements-to-add}$}{
+% emit (I, $I \cup item$)
+% }
+% }{}\;
+% \caption{Parallel-expand MapReduce algorithm}
+% \label{alg:parallel-expand}
+% \end{algorithm}
+
+\subsection{Computing a Batch of Closures}
+We now suggest an optimization to $parallelized-lcm$,
+regarding the computation of itemsets closure. When the
+master machine decides to compute a closure for an itemset
+$I$, it applies $parallelized-closure$. By doing this, as
+described in Algorithm ??, all mappers project their
+transactions on $I$ and intersecting for having the local
+closure. All results are sent to a reducer to complete the
+intersection. We suggest $batched-parallelized-closure$ in
+Algorithm ??. In this algorithm, every mapper gets a
+batch of itesmsets as an input. Assume a batch
+${I_1,\ldots,I_t}$. Then, every mapper applies $t$
+projection on its transaction, one for each itemset. Every
+projection is then intersected and sent to a reducer. Reduce
+function remains the same. Compared to
+$parallelized-closure$, this mapper has more work to do.
+However, used in $parallelized-lcm$, we suggest that the
+resulting tree will be composed in layers. Namely, after
+doing $parallel-expand$ and having the set of candidates to
+compute closure for, all candidates are sent together to
+$batched-parallelized-closure$. We call the resulting
+algorithm $batched-parallelized-lcm$ and describe its pseudo
+code in Algorithm ??. By computing the closures in batches,
+we save the IO time of loading the data to mappers for every
+itemset, and using data loaded for a batch of itemsets
+together.
+
+\subsection{The Speed-Accuracy tradeoff}
+In $batched-parallelized-lcm$, there are many MapReduce jobs
+that occur frequently in the algorithm and required the work
+of all mappers and reducers. We note that if we ask only few
+mappers to work for some input, it is equivalent to applying
+the MapReduce job only on a sample of the input. For
+instance, having the transactions equally divided between
+$n$ mappers, applying the MapReduce job only on
+$\frac{n}{2}$ mappers is equivalent to running the algorithm on half of
+the transactions. The operations of elements counting and
+closure computation can be done on a sample of the
+data, or in other words only on a subset of mappers,
+resulting in approximated results. However, as we
+have $n$ mappers, we can run the approximated jobs
+together. In the current example, We can run in
+parallel two MapReduce jobs, each on $\frac{n}{2}$
+mappers. We lose the accuracy of the result, but gain
+a significant factor of running time. In section
+\ref{sec:alg-sampling}, we suggest a formal
+definition for the approximated computation, and
+determine the best balance for having a fast
+and well approximated computation.

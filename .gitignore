@@ -1,0 +1,10 @@
+tmp/*
+*.sty
+*.pdf
+*.gz
+*.blg
+.project
+.texlipse
+*.bbl
+*.log
+*.aux

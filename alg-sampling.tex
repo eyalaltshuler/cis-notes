@@ -1,0 +1,278 @@
+\section{Speeding up Distributed LCM using sampling}
+\label{sec:alg-sampling}
+In this section we present an approximated version of
+$batched-parallelized-lcm$ presented in Section
+\ref{sec:alg}. We use sampling in two main components 
+of the algorithm. The technique of sampling enables 
+the algorithm to dramatically reduce the amount of 
+processed data. As we use sampling for itemsets counting
+and closure computation, the algorithm gives an
+approximation of all closed frequent itemsets. We give
+theoritical analysis of the approximation. Then desbribe the 
+approximated version of the algorithm. We end this section by theoretically analyzing 
+the efficiency of using sampling, in two aspects. First is 
+running time, achieved due to the reduced amount of data 
+to be processed. Second is the performance of approximation. 
+We show that it is very accurate and catches the frequent 
+closed itemsets very well.
+
+\subsection{Itemset Frequency Approximation}
+Algorithm \ref{alg:batched-parallel-lcm} uses MapReduce
+to compute the frequency of a given itemset in the
+data. Such MapReduce job was desctibed in Algorithm
+\ref{alg:parallel-count}. We use to following lemma to
+show that a random sample of the data can be used
+to estimate the frequency of an itemset-
+
+\begin{lemma}
+If we take a sample of size $S$, the frequenct of an Itemset
+$I$ is well approximated.
+\end{lemma}
+
+\begin{proof}
+Using Chernoff bound
+\end{proof}
+
+Note that by these result, we can use a very small sample
+for estimating the frequency of every candidate itemset in a
+batch. In practical cases, the number of transactions in a
+single mapper are extremely larger than those required to
+ensure an almost 99.9\% approximation. We therefore use a
+single MapReduce job having only a MapPhase, which is
+equivalleny to letting every itemset to be estimated locally
+in every mapper. Note that we assume that data is randomly
+shufflled among the machines.
+
+\subsection{Presenting $(1-\alpha)$ closure operator}
+We show that a sample can be used to estimate the closure of
+a given itemset. Note that computing the closure of an
+itemset on a sample, can result in an itemset that contains
+all items of the closure, but might contain some more.
+For closure estimation, we formally define the
+approximation of the closure. Let $0 < \alpha < 1$. We first define the $(1-\alpha)-closure$.
+
+Consider an itemset $P$, its closure $Q$ and $\alpha$. An
+itemset $Q'$ is a $(1-\alpha)-closure$ of $P$ if $Q
+\subseteq Q'$ and $supp(Q')\geq (1-\alpha)supp(P)$. Note
+that according to its definition-
+\begin{center}
+$supp(P)\geq supp(Q')$
+\end{center}
+Additionally, note that there might be more than one
+$(1-\alpha)-closure$ for a given itemset $P$ and a given
+$\alpha$. This is in contrary to the uniqueness of $Q$,
+which is the largest existing itemset that contain $P$ and
+has the same support.
+If we pick a small enough $\alpha$, then the
+$(1-\alpha)-closure$ of $P$ will be the real closure. We
+show that using sampling, we can pick a relatively small
+sample size for computing a $(1-\alpha)-closure$ of $P$, for
+practically very small sizes of $\alpha$.
+
+We use the next two lemmas for adding a preprocessing
+MapReduce at the beginning that allows us to have an very
+good approximation of the graph, but works on a very small
+portion of the data. Thus, we are able to massively scale
+the algorithm. The sample can be done using MapReduce too,
+for having it fast. The entire algorithm can be implemented
+in frameworks such as Spark, that allows iterative MapReduce algorithms to be
+done only on main memory instead of reading and writing on
+disk between phases.
+
+Consider a sample of size $s$. We use the following two
+lemmas:
+\begin{lemma}
+\eyal{FORMAL DEFINITION}
+If an itemset is having a frequency $M$, then it
+appears at least $x$ in the sample with very high probability.
+\end{lemma}
+\begin{proof}
+\eyal{complete proof}
+\end{proof}
+\begin{lemma} 
+\eyal{FORMAL DEFINITION}
+If an itemset is having a frequency
+$M$, then its closure in the sample is $(1-\alpha)$-closure with very
+ high probability.
+\end{lemma}
+\begin{proof}
+\eyal{complete proof}
+\end{proof}
+
+\subsection{Closure Approximation}
+Let us now show, given $\alpha$, how to approximate the
+$(1-\alpha)-closure$ of an itemset $P$ using sampling.
+Consider an itemset $P$ and its closure, $Q'$. Then, given a
+sample of $S$ transactions, denote by $X$ the number of
+occurences of $Q'$. Then, $X$ is a random variable and let
+us denote by $X_i$ the indicator random variable that marks
+whehter $Q'$ is a subset of the $i$-th transaction in the
+sample. Then -
+
+\[
+ X_i =
+  \begin{cases}
+   1       & \text{Q' is the i'th transaction}\\
+   0       & \text{otherwise}
+  \end{cases}
+\]
+
+In addition - 
+
+\[ {E({X)}} =
+{E(\sum\limits_{i=1}^{S}{X_i})}
+\]
+
+According to its definition, we know that-
+
+\[ {E({X_i)}} \geq
+(1-\alpha)*\frac{\left\vert{P}\right\vert}{n}
+\]
+
+And therefore we know the lower bound for the expectation of
+$X$ - 
+
+\[ {E({X)}} \geq
+(1-\alpha)*\frac{S * \left\vert{P}\right\vert}{n}
+\]
+
+We now use Chernoff inequality to bound the probability
+that $X$ differs from its expectation by a factor of
+$\delta$. Then - 
+\begin{equation*}
+\begin{split}
+\Pr(X < (1-\delta)*E(X)) & < \\
+\Pr(X < (1-\alpha)*\frac{S * \left\vert{P}\right\vert}{n}) < \\
+exp^{-(1-\alpha)*\frac{S *\left\vert{P}\right\vert}{n}\frac{\delta^2}{2}} \\
+\end{split}
+\end{equation*}
+
+Note that this error is monotoically decreasing in the size
+of $S$. Namely, the larger we take $S$ to be, the smaller
+error we have. If for instance, we want to bound the error
+of missing $Q'$ by $\epsilon$, then -
+\begin{equation}
+exp^{-(1-\alpha)*\frac{S
+*\left\vert{P}\right\vert}{n}\frac{\delta^2}{2}} <
+\epsilon\\
+\end{equation}
+
+and we should take $S$ to be of size - 
+\begin{equation}
+S >
+ln(\frac{1}{\epsilon})*\frac{2n}{(1-\alpha)\delta^2\left\vert{P}\right\vert}
+\end{equation}
+
+To sum up, if we take $S$ to be at least of this size, then
+we bound the error of missing $Q'$. In other words, if we
+take $S$ of such size, we get, with probability of at least
+$1-\epsilon$, a set that includes the closure of $P$ and
+exists in more than $(1-\alpha)$ where $P$ exists.
+
+\subsection{Iterative MapReduce Implementation}
+We end this section by describing some minor changes that
+need to be made to $batched-parallelized-lcm$.
+We describe the new algorithm, called $approximated-lcm$.
+The pseudo-code of $approximated-lcm$ can is shown in
+Algorithm \ref{alg:approximated-lcm}.
+
+In a high level overview, the algorithm is running by a
+master machine that manages its logic, and whenever a
+MapReduce step is needed, data is loaded in parallel into
+the main memory of all slaves machines, that run MapReduce
+on it and send the result back to the master. The master is
+then able to decide about the next step. The master
+machine asks the slaves of running MapReduce steps of two
+types. First type is the itemset approximation, and the
+second is batched itemset closure approximation. The
+algorithm terminates after the master completes asking the 
+slaves for running MapReduce rounds. The algorithm output 
+is then written by the master.
+
+\begin{algorithm}[t]
+ \DontPrintSemicolon
+ //A master machine and k slaves machines running
+ MapReduce\;
+ \SetKwProg{myalg}{}{}{}
+ \myalg{\textbf{APPROXIMATED-LCM}}{
+ 	sample =  MapReduceSample(); \\
+ 	load-to-slaves(sample); \\
+ 	items-counts = parallel-count(items); \\
+ 	candidates = filter(item-counts, M); \\
+ 	closed-tree = Initialize-closed-tree(); \\
+ 	\While{candidates}{
+ 		closed-itemsets = parallel-closure(candidates); \\
+ 		add-level-to-tree(closed-tree, closed-itemsets); \\
+ 		next-level = parallel-expand(closed-itemsets); \\
+ 		candidates = filter(next-level, M); \\
+ 	}
+ }{}\;
+ \caption{Approximated LCM algorithm}
+ \label{alg:approximated-lcm}
+\end{algorithm}
+
+The algorithm starts by randomly sampling the data, with a 
+sample size $s$ determined by Lemmas ?? and ??. The goal is 
+to have a good approximations of both items frequency and 
+itemsets closure. Data sampling is also done using a MapReduce 
+iteration in which every mapper samples $\frac{1}{sk}$ and 
+therefore the expectation of the sample size is $s$. All 
+mappers send their to a single reducer. In practical settings, 
+the sample is small enough to fit in a single machine memory, 
+and therefore a single reducer is picked.
+
+After having the sample, A first step of type itemset
+frequency approximation is applied on it. This step is an
+example itemset approximation, and it is done using MapReduce in which the
+sample is split accorss all machines and they simply do
+itemset counting. After completing MapReduce singletons
+itemsets counting, the results are sent to the master and
+only items having support of at least $M$ are filtered as
+candidates of building frequent itemsets in general. The
+master is then using a batched closure computation step on
+the sample to find the closure of every singleton itemset.
+Note that by Lemma ??, the master is able to determine the
+required number of machines for every closure computation.
+To simplify our description of the algorithm, we assume that
+a single machine is having a large enough amount of data for
+having a goog approximation for a singleton itemsets.
+
+Note that this is a reasonable assumption in practical
+settings, in case of having a large frequency of an itemset
+and in case of a lower thresold. In addition, as the
+frequency of scanned itemsets is only getting smaller, if we
+assume that a single machine is required for having a good
+approximation of the closure of a singleton itemsets, then a
+single machine is required for every candidate itemsets
+scanned by the algorithm.
+
+After the master is having a batch of a filtered
+singleton itemsets with support larger than $M$, it has
+to assign every mapper the itemsets to work on. In our
+case, it has to take the batch of itemsets and equally
+divide them between mappers. In the general case, in
+which the number of required machines can be between one
+and $t$, an itemset closure might be computed using more
+than one machine. Deciding the optimal assignment of
+itemsets to mappers reduces to the problem of resource
+allocation, which is known to be NP-hard. In our work we
+use hueristic that approximates the optimal allocation. We
+adopt the algorithm from ??.
+
+After computing the closure approximation, the master has
+the first level of closed frequent itemsets in the closed
+frequent itemsets tree. The next step is applying the
+expand operation, which was described in ??. The resulting
+itemsets of the expand operation are the candidates on which
+a closure approximation will be computed in the next level.
+Before applying this computation, the master agains using
+the MapReduce itemset approximation step for filtering only
+the frequent candidates. Then they are assigned to mappers
+for computing the closure approximation step, as before.
+Results are appended to the resulting tree. The master then
+iteratively scans all candidates, until one of the two
+possible situations. First is that all candidates itemsets
+are not considered as frequent after approximation. Second
+is that the computed closed itemsets is containing all
+frequent itetms, and there cannot be expanded, resulting in
+an empty set of candidates itemsets by the expand operator.

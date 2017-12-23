@@ -1,0 +1,161 @@
+\section{Preliminaries}
+
+\subsection{Notations}
+Let $I$ be a set of items. $I=\{i_1,i_2,\ldots\}$.
+Let $T$ be a database which is a set of
+transactions, $T=\{t_1,\ldots,t_n\}$.
+Each transaction in $T$ is a finite set of items, i.e, for
+every $i$, $t_i\subseteq I$. Define an itemset as a finite
+set of items. If $I'$ is an itemset, then $I' \subseteq I$.
+The support of an itemset $I'$ in $T$ is the number of
+transactions in T that include all items in $I'$ - 
+\begin{center}
+$supp_T(I') = |\{ t \in T | I' \subseteq t \}|$
+\end{center}
+The \textit{closure} of an itemset is the largest itemset
+with the same support. Assume $P$ is an itemset, and $Q$ is
+the closure of $P$. We mark by \textit{clo} the closure
+operator- 
+\begin{center}
+$Q=clo(P)$
+\end{center}
+By its definition, we know that $supp(Q)=supp(P)$. In our
+settings, consider the database is huge and therefore its
+tuples can't fit in one machine main memory. Therefore, we
+assume that transactions are loaded into a set of $k$
+machines. As there are $n$ transactions, we assume that they
+are loaded equally. Namely, $\frac{n}{k}$ transactions are
+loaded to each machine. Given a database $T$ and an itemset
+$P$, we want to compute the closure of $P$ in $T$. 
+
+\begin{example}
+\label{example:basic}
+Assume the database $T$ is a list of supermarket receipts, 
+each represents a single buyer. Assume the following
+receipts (itemsets):
+\begin{align*}
+P_1 &= \{milk, coke\} \\
+P_2 &= \{bread, butter, water\} \\
+P_3 &= \{bread, butter, water, pasta\} \\
+\end{align*}
+If, for instance, there are 20 receipts containing \{bread,
+butter, water\} then $supp_T(P_2) = 20$. Assume also that
+$supp_T(P_3) = 20$, and there is no itemset $P_4$ such that
+$P_3 \subset P_4$ and $supp(P_4) = 20$, then $clo(P_2) =
+P_3$, as $P_3$ is the itemset with largest cardinality
+having the same suppport in $T$ as $P_2$.
+\end{example}
+
+In general, we want to compute all closed itemsets having
+support of at least $M$. From now on, we mark the desired threshold of an itemset by $M$.
+
+We now destribe how to compute the closure of a given
+itemset. For computing the closure of an itemset $P$, we
+first need to project the entire database $T$ only on these
+transactions in which $P$'s items occur. Then, after having 
+this projection, we can simply compute the $closure$ operator by
+instersecting all of its transactions. It is easy to prove
+that this interscrtion will be exactly $P$'s closure, as it
+will contain $P$, and any other item that is not in $P$ can
+be added to it for obtaining its closure. As intersection is
+a distributive opeartion, it can be easily applied in
+our distributed settings of $k$ machines. Namely, all
+machines are given $P$, and project their data on it. Then, they intersect all
+projected transactions and get their result. These
+results are partial as they were computed only
+locally on each machine. These partial results are then sent
+to a single machine, that intersects all results again, to
+get the final result, which is  the closure of $P$.
+
+As a final note, we consider the case of computing an
+itemset closure when having only a sample of the data. When 
+projecting a sample of the data on $P$, we never miss any of
+the closure items in the result. the closure elements will 
+appear if we intersect all the transactions in the projection. 
+However, we might have some false positives. Namely, these 
+are items that might appear in all of $P$'s occurences in 
+the sample, but they badly represent the result when all data is tested.
+Therefore, when applying the naive algorithm for computing
+the closure of an itemset $P$, we get an itemset $Q'$ such
+that $Q \subseteq Q'$ and $Q'$ might contain some elements
+that are not part of the closure.
+
+\begin{example}
+Consider the database and itemsets presented in example
+\ref{example:basic}. Consider a sub-sample $T$, having only
+some of the receipts from $T$. Mark this sample by $S$.
+Recall the itemset - $P_2 &= \{bread, butter,
+water\}$. Assume we want to compute $clo(P_2)$ in $S$, or
+simply $supp_S(P_2)$. Note that two cases are possible, depending 
+on the support of $P_2$ in $S$. First case is that $supp_S(P_2)
+= 20$, as happens in $T$. In this case, $P_3$ remains
+the itemset with largest cardinality having the same support as $P_2$.
+The second case is, for instance, when $supp_S(P_2) = 15$. 
+Consider an itemset $P_4 = \{bread, butter,
+water, pasta, rice\}$ such that $supp_T(P_4) = 15$. If
+$supp_S(P_4) = supp_T(P_4) = 15$, then we get that
+$clo_S(P_2) = P_4$. In this case, $P_4$ is having the same
+support as $P_2$ in $S$. As $P_3 \subset P_4$, $P_4$ is an
+itemset with higher cardinality than $P_3$ having the same
+support in $S$ as $P_2$. Note that in such a sample, there
+can be another itemset, $P_5$, such that $supp_S(P_4) =
+supp_S(P_5)$ and $P_5$ contains all items of $P_2$. In such
+case $P_5$ could also be considered the closure of $P_2$.
+Having more than one candidate for the $closure$ operator,
+we pick one randomly.
+\end{example}
+
+\subsection{LCM Algorithm}
+We briefly explain the $LCM$ Algorithm \cite{uno2003lcm}, as
+a baseline algorithm. $LCM$ builds a graph of closed
+itemsets. It provides a technique for building the graph of all closed itemset.
+Using an \textit{expansion} operator, it gives a way of
+scanning a minimal amount of candidate itemsets. For every itemset, its
+closure is computed, and then the closed itemset is
+expanded. The resulting graph represents all closed itemsets
+with frequency of at least $M$. Note that the tree is a
+very compact way of representing the set of all
+frequent itemsets. Given an itemset $i$, deciding whether
+its frequency is at least is $M$ is done by scanning the graph
+bottom up and finding a node identied with a set that
+contains $i$. In case $i$ is frequent, its frequency will
+be determined by finding the node that represents its
+closure, which is the node with minimal cardinality 
+(smallest number of items) containing $i$. 
+
+ The LCM algorithm buids a graph of frequent closed itemsets
+ levels. In every level, it starts by creating a set of $candidates$ itemsets. These are
+frequent itemsets that have not yet tested by the algorithm.
+Then, for every itemset in $candidates$, its
+closure is computed. Let us mark the resulting set by
+\textit{current-closed-itemsets}. The itemsets in
+\textit{current-closed-itemsets} are then added to the graph
+as a new level. In every insertion of a new level to the graph, all itemsets in 
+the new level are connected with edges to 
+itemsets in the previously inserted level.
+Edges stand for the $subset$ condition. Namely, an edge
+$(I_{old}, I_{new})$ means that $I_{old} \subset I_{new}$.
+The algorithm works iteratively and explores a new set of
+candidates in every iteration. It terminates when it
+computes $candidates$ as an empty set. Then, the resulting
+graph is returned.
+%\begin{figure}
+%\centering
+%\hspace{-1mm}
+%\includegraphics{figures/cube-lattice.pdf}
+%\caption{Cube lattice} \label{fig:lattice}
+%\end{figure}
+
+\subsection{MapReduce Settings}
+We specify here the MapReduce cluster settings that will be
+used in the rest of the paper. Consider a database $T$ with
+$n$ transactions of itemsets. Working in a distributed environment, 
+suppose we have $k$ machines, and assume each one can run a single map
+or a single reduce function in every map or reduce phase,
+respectively. We assume that the $n$ transactions of the
+input are equally loaded to the machines at the beginning of the algorithm.
+We additionally assume that the machines have a main memory
+that is in the order of their input size. In addition, 
+we assume that all machines share a distributed file system,
+in which $T$ is read from and to which the output closed
+frequent itemsets will be written.

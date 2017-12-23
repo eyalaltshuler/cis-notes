@@ -1,0 +1,147 @@
+\documentclass{sig-alternate-05-2015}
+\usepackage[svgnames]{xcolor}
+
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{balance}
+\usepackage{colonequals}
+\usepackage{paralist}
+\usepackage[skins]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[resetfonts]{cmap} %helps dealing with ligatures (special symbols for ff, fi etc that prevent searching)
+
+\usepackage{mathtools}
+
+\usepackage{xfrac}
+% subcaption is a better alternative to subfigure, cf. e.g.
+% http://tex.stackexchange.com/questions/13625/subcaption-vs-subfig-best-package-for-referencing-a-subfigure
+%\usepackage{graphicx}
+\usepackage{caption}
+\DeclareCaptionType{copyrightbox}
+\usepackage{subcaption}
+
+\usepackage[linesnumbered,ruled,vlined,boxed]{algorithm2e}
+\renewcommand\AlCapFnt{\normalfont}
+%% more spacing
+\SetAlCapSkip{0.5em}
+\let\chapter\undefined % Magic trick that fixes appendix links
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{definition}[theorem]{Definition}
+
+% fancy verbatim
+\fvset{frame=single,framesep=1mm,fontfamily=tt,numbers=left,framerule=.3mm,numbersep=1mm,commandchars=\\\{\}}
+\definecolor{bgred}{RGB}{255,210,205}
+\definecolor{bgblue}{RGB}{210,220,255}
+\definecolor{bgyellow}{RGB}{240,240,190}
+\definecolor{bggrey}{RGB}{223,223,225}
+\definecolor{purple}{RGB}{180,0,180}
+
+%\newcommand{\REMARK}[2]{}
+\newcommand{\REMARK}[2]{\textcolor{red}{[{\bf #1: }#2]}}
+\newcommand{\eyal}[1]{\REMARK{Eyal}{#1}}
+\newcommand{\tova}[1]{\REMARK{Tova}{#1}}
+\newcommand{\scream}[1]{\REMARK{\underline{TBD}}{#1}}
+
+% general macros
+\newcommand{\var}[1]{\operatorname{\mathit{#1}}}
+\newcommand{\name}[1]{\operatorname{#1}}
+\newcommand{\funct}[2]{\operatorname{#1}\!\left({#2}\right)}
+\newcommand{\To}{\!\rightarrow\!}
+\newcommand{\card}[1]{\left|{#1}\right|}
+\newcommand{\ceil}[1]{\left\lceil{#1}\right\rceil}
+\renewcommand{\epsilon}{\varepsilon}
+\renewcommand{\phi}{\varphi}
+\newcommand{\oof}[1]{\operatorname{O}\!\left({#1}\right)}
+\newcommand{\oofi}[1]{\operatorname{O}({#1})}
+\newcommand{\omegaof}[1]{\operatorname{\Omega}\!\left({#1}\right)}
+\newcommand{\omegaofi}[1]{\operatorname{\Omega}({#1})}
+\newcommand{\thetaof}[1]{\operatorname{\Theta}\!\left({#1}\right)}
+\newcommand{\thetaofi}[1]{\operatorname{\Theta}({#1})}
+
+%functions
+\newcommand{\supp}[2][\mathit{u}]{\funct{supp_{#1}}{#2}}
+\newcommand{\cnf}[2][\mathit{u}]{\funct{conf_{#1}}{#2}}
+\newcommand{\lift}[2][\mathit{u}]{\funct{lift_{#1}}{#2}}
+\newcommand{\sig}[2][\Theta]{\funct{sig_{_{#1}}}{#2}}
+\newcommand{\wid}[1]{\funct{wid}{#1}}
+
+% Domains and elements
+\newcommand{\elem}[1]{\textsf{#1}}
+\newcommand{\ont}{\mathcal{O}}
+\newcommand{\clss}{\mathcal{E}}
+\newcommand{\rels}{\mathcal{R}}
+
+\newcommand{\msps}{\mathsf{msp}}
+\newcommand{\minip}{\msps\!^{-}}
+
+\newcommand{\bikingcentral}{\phi_{_{16}}}
+\newcommand{\baseballcentral}{\phi_{_{20}}}
+\newcommand{\sportcentral}{\phi_{_{15}}}
+\newcommand{\ballcentral}{\phi_{_{17}}}
+\newcommand{\bikballcentral}{\phi_{_{18}}}
+
+\newcommand{\cgroup}{{c-group~}}
+\newcommand{\cgroups}{{c-groups~}}
+
+\newcommand{\cgroupnospace}{{c-group}}
+\newcommand{\cgroupsnospace}{{c-groups}}
+
+\title{An Iterative MapReduce Algorithm for
+Approximating Closed Itemsets Using Spark}
+\setlength{\paperheight}{11in}
+\setlength{\paperwidth}{8.5in}
+
+\usepackage[pdfborder={0 0 0}, plainpages, pdfpagelabels=false, pdfstartview=FitH]{hyperref}
+
+
+\newfont{\mycrnotice}{ptmr8t at 7pt}
+\newfont{\myconfname}{ptmri8t at 7pt}
+\let\crnotice\mycrnotice%
+\let\confname\myconfname%
+
+\clubpenalty=10000
+\widowpenalty = 10000
+
+\begin{document}
+
+\CopyrightYear{2016} 
+\setcopyright{acmcopyright}
+\conferenceinfo{SIGMOD'16,}{June 26-July 01, 2016, San Francisco, CA, USA}
+\isbn{978-1-4503-3531-7/16/06}\acmPrice{\$15.00}
+\doi{http://dx.doi.org/10.1145/2882903.2882922}
+
+\clubpenalty=10000 
+\widowpenalty = 10000
+
+\numberofauthors{2} 
+\author{
+\alignauthor
+Eyal Altshuler\\
+       \affaddr{Tel-Aviv University}\\
+       \affaddr{Tel-Aviv, Israel}
+       \email{eyalalts@post.tau.ac.il}
+% 2nd. author
+\alignauthor
+Tova Milo\\
+       \affaddr{Tel-Aviv University}\\
+       \affaddr{Tel-Aviv, Israel}
+       \email{milo@post.tau.ac.il}
+}
+
+\maketitle
+
+\input{preliminaries}
+%\input{related}
+\input{alg}
+\input{alg-sampling}
+%\bibliographystyle{abbrv}
+%\bibliography{bib}
+%\input{appendix}
+
+\end{document}
